@@ -1,5 +1,10 @@
 
-tau = Math.PI * 2
+function drawForkMe() {
+    var m = window.location.href.match(/([^\/\.]+)\.github\.io\/([^\/]+)/)
+    if (!m) return $('<div/>')
+    var url = 'https://github.com/' + m[1] + '/' + m[2]    
+    return $('<a href="' + url + '"><img width="64px" style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_red_aa0000.png" alt="Fork me on GitHub"></a>')
+}
 
 function colorToCss(c) {
     if (c.length == 3)
@@ -7,33 +12,16 @@ function colorToCss(c) {
     return 'rgba(' + _.map(c.slice(0, 3), function (x) { return Math.floor(x) }).join(',') + ',' + c[3] + ')'
 }
 
-function dot(a, b) {
-    var sum = 0
-    for (var i = 0; i < a.length; i++)
-        sum += a[i] * b[i]
-    return sum
-}
-
-function sub(a, b) {
-    var x = []
-    for (var i = 0; i < a.length; i++)
-        x[i] = a[i] - b[i]
-    return x
-}
-
-function mul(a, b) {
-    var x = []
-    for (var i = 0; i < a.length; i++)
-        x[i] = a[i] * b[i]
-    return x
-}
-
-function mag(a) {
-    return Math.sqrt(dot(a, a))
-}
-
-function angleBetween(a, b) {
-    return Math.acos(dot(a, b) / (mag(a) * mag(b)))
+function comparator(f, desc) {
+    return function (a, b) {
+        if (f) {
+            a = f(a)
+            b = f(b)
+        }
+        if (a < b) return desc ? 1 : -1
+        if (a > b) return desc ? -1 : 1
+        return 0
+    }
 }
 
 function drawShareButtons(message, url, cb) {
@@ -42,17 +30,17 @@ function drawShareButtons(message, url, cb) {
     var shares = [
         {
             type : 'facebook',
-            img : 'images/facebook_grey.png',
+            img : 'facebook_grey.png',
             url : createFacebookShareLink(url, '', message, '')
         },
         {
             type : 'twitter',
-            img : 'images/twitter_grey.png',
+            img : 'twitter_grey.png',
             url : createTwitterShareLink(message + ' ' + url)
         },
         {
             type : 'google+',
-            img : 'images/google_plus_grey.png',
+            img : 'google_plus_grey.png',
             url : createGooglePlusShareLink(url)
         }
     ]
@@ -196,23 +184,42 @@ jQuery.fn.extend({
         return this.each(function () {
             rotate($(this), amount)
         })
+    },
+    enabled : function (yes) {
+        if (yes === undefined)
+            return !$(this[0]).attr('disabled')
+        return this.each(function () {
+            if (yes) $(this).removeAttr('disabled')
+            else $(this).attr('disabled', 'disabled')
+        })
+    }
+})
+
+jQuery.fn.extend({
+    rotate : function (amount) {
+        return this.each(function () {
+            rotate($(this), amount)
+        })
     }
 })
 
 function createThrobber() {
-    var d = $('<div style="width:30px;height:10px;background:transparent"/>')
-    var dd = $('<div style="width:0px;height:10px;background:blue"/>')
-    d.append(dd)
+    var d = $('<span/>')
+    var anim = [
+        '|---',
+        '-|--',
+        '--|-',
+        '---|',
+        '--|-',
+        '-|--'
+    ]
     var start = _.time()
     var i = setInterval(function () {
         if ($.contains(document.documentElement, d[0])) {
             var t = (_.time() - start) / 1000
-            t *= 6
-            var w = _.lerp(-1, 10, 1, 30, Math.sin(t))
-            dd.css('width', w + 'px')
-            dd.css('margin-left', (30 - w) / 2 + 'px')
-        } else
-            clearInterval(i)
+            t *= 3
+            d.text(anim[Math.floor(t % anim.length)])
+        } else clearInterval(i)
     }, 30)
-    return d;
+    return d
 }

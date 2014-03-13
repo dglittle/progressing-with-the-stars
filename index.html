@@ -16,121 +16,92 @@ th, td {
 }
 
 </style>
-<link rel="image_src" href="http://dglittle.github.io/color-golf/logo.png" />
 </head>
 <body>
+<script src="https://www.dropbox.com/static/api/dropbox-datastores-1.0-latest.js"></script>  
 <script src="http://code.jquery.com/jquery-2.0.3.min.js"></script>
-<script src="index.js"></script>
-<script src="random.js"></script>
+<script src="//dglittle.github.io/gl519/index.js"></script>
 <script src="utils.js"></script>
-<script src="words.js"></script>
 <script>
 
 function drawChart(c) {
-	var d = $('<div style="background:lightgrey;border-radius:10px;padding:10px;box-sizing:border-box;width:320px;margin:10px;float:left"/>')
-	d.append($('<div/>').text(c.title))
-	_.each(c.stars, function (star, i) {
-		var dd = $('<div style="float:left;font-size:24px;cursor:pointer"/>')
-		d.append(dd)
-		function update() {
-			star = c.stars[i]
-			if (!star) {
-				dd.empty().append($('<div style="color:rgb(190,190,190)"/>').text(c.star).click(function () {
-					c.stars[i] = _.time()
-					saveState()
-					update()
-				}))
-			} else {
-				var color = _.map(_.shuffle([1, Math.random(), 0]), function (x) { return Math.floor(x * 256) })
-				var color = [0, 0, 255]
-				dd.empty().append($('<div style="color:' + colorToCss(color) + '"/>').text(c.star).click(function () {
-					c.stars[i] = null
-					saveState()
-					update()
-				}))
-			}
-		}
-		update()
-	})
-	d.append($('<div style="clear:both"/>'))
-	return d
+    var d = $('<div style="background:lightgrey;border-radius:10px;padding:10px;box-sizing:border-box;margin:10px;float:left"/>')
+    d.append($('<div/>'))
+    d.append($('<div style="float:left"/>').text(c.get('title')))
+    d.append($('<div style="float:right;cursor:pointer"/>').text('×').click(function () {
+        if (confirm('are you sure you want to delete: ' + c.get('title') + '?')) {
+            c.deleteRecord()
+        }
+    }))
+    d.append($('<div style="clear:both"/>'))
+    _.each(c.get('stars').toArray(), function (star, i) {
+        var dd = $('<div style="float:left;font-size:24px;cursor:pointer"/>')
+        if (!star) {
+            dd.append($('<div style="color:rgb(190,190,190)"/>').text('★').click(function () {
+                c.get('stars').set(i, _.time())
+            }))
+        } else {
+            var color = [255, 255, 0]
+            dd.empty().append($('<div style="color:' + colorToCss(color) + '"/>').text('★').click(function () {
+                c.get('stars').set(i, null)
+            }))
+        }
+        d.append(dd)
+    })
+    d.append($('<div style="clear:both"/>'))
+    return d
 }
 
-function drawState() {
-	var d = $('<div/>')
-	_.each(g_state.charts, function (c) {
-		d.append(drawChart(c))
-	})
-	d.append('<div style="clear:both"/>')
-	return d
+function drawNewChart(chartsTable) {
+    var d = $('<div style="background:lightgrey;border-radius:10px;padding:10px;box-sizing:border-box;margin:10px;float:left"/>')
+    d.append($('<input id="title" type="text" placeholder="my title">'))
+    d.append($('<br/>'))
+    d.append($('<input id="stars" type="text" placeholder="num stars">'))
+    d.append($('<br/>'))
+    d.append($('<button/>').text('add').click(function () {
+        chartsTable.insert({
+            title : d.find('#title').val(),
+            stars : _.map(new Array(1 * d.find('#stars').val()), function () { return 0 })
+        })
+    }))
+    return d
 }
 
-function saveState() {
-	$.post('http://view-count.herokuapp.com/set/pwts-' + g_user, _.json(g_state), function () {
-		console.log('saved!')
-	})
-}
-
-function loadState(cb) {
-	$.get('http://view-count.herokuapp.com/get/pwts-' + g_user, function (s) {
-		try {
-			g_state = _.unJson(s)
-		} catch (e) {
-			initState()
-		}
-		cb()
-	})
-}
-
-function initState() {
-	g_state = {}
-	g_state.charts = [
-		{
-			title : 'juggling, 10 tries',
-			star : '♻',
-			stars : new Array(10)
-		},
-		{
-			title : 'clear mind, 5 mins',
-			star : '☯',
-			stars : new Array(10)
-		}
-	]
+function drawMain(chartsTable) {
+    var d = $('<div/>')
+    _.each(chartsTable.query(), function (c) {
+        d.append(drawChart(c))
+    })
+    d.append(drawNewChart(chartsTable))
+    return d
 }
 
 $(function () {
-	g_user = _.getUrlParams()['user']
-    if (!g_user) {
-        window.location.href = window.location.href + '?user=' + _.map(_.range(3), function (x) { return _.sample(words) }).join('-')
-        return
+    var main = $('<div/>')
+    $('body').append(drawForkMe()).append(main)
+
+    g_dropbox = new Dropbox.Client({ key : 'w1vzjz5sf28l2hw' })
+    g_dropbox.authenticate({ interactive : false })
+    if (g_dropbox.isAuthenticated()) {
+        var dm = g_dropbox.getDatastoreManager()
+        dm.openDefaultDatastore(function (err, d) {
+            if (err) return alert(err)
+            function onChange() {
+                main.empty().append(drawMain(d.getTable('charts')))
+            }
+            onChange()
+            d.recordsChanged.addListener(onChange)
+            $(window).resize(onChange)
+        })
+    } else {
+        $('body').append($('<button/>').text('login with dropbox').click(function () {
+            $('body').empty().append(createThrobber())
+            g_dropbox.authenticate()
+        }))
     }
-
-	if ($(window).width() > 700) {
-		$('body').append($('<a href="https://github.com/dglittle/progressing-with-the-stars"><img width="64px" style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_red_aa0000.png" alt="Fork me on GitHub"></a>'))
-	}
-
-	g_div = $('<div style="width:100%;height:100%;background:darkgrey;box-sizing:border-box"/>')
-	$('body').append(g_div)
-	g_div.append(createThrobber())
-	loadState(function () {
-		function onResize() {
-			g_div.empty().append(drawState())
-		}
-		onResize()
-		$(window).resize(onResize)
-	})
 })
 
 </script>
-<script>
-  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
 
-  ga('create', 'UA-3118247-7', 'dglittle.github.io');
-  ga('send', 'pageview');
-
-</script>
 </body>
 </html>
