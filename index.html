@@ -41,7 +41,8 @@ function drawChart(c) {
                 c.get('stars').set(i, _.time())
             }))
         } else {
-            var color = [255, 255, 0]
+            console.log('star = ' + star)
+            var color = [255, _.lerpCap(_.time(), 128, _.time() - 1000 * 60 * 60 * 24, 255, star), 0]
             dd.empty().append($('<div style="color:' + colorToCss(color) + '"/>').text('★').click(function () {
                 c.get('stars').set(i, 0)
             }))
