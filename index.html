@@ -43,7 +43,7 @@ function drawChart(c) {
         } else {
             var color = [255, 255, 0]
             dd.empty().append($('<div style="color:' + colorToCss(color) + '"/>').text('★').click(function () {
-                c.get('stars').set(i, null)
+                c.get('stars').set(i, 0)
             }))
         }
         d.append(dd)
