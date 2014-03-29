@@ -1,4 +1,55 @@
 
+function grabMouse(d, cb, onUp) {
+    d.on('mousedown', function (e) {
+        e.preventDefault()
+        cb(e.pageX, e.pageY)
+
+        var oldMove = document.onmousemove
+        document.onmousemove = function (e) {
+            cb(e.pageX, e.pageY)
+        }
+        
+        var oldUp = document.onmouseup
+        document.onmouseup = function (e) {
+            if (onUp) onUp()
+            document.onmousemove = oldMove
+            document.onmouseup = oldUp
+        }
+    })
+    d.on('touchstart', function (e) {
+        e.preventDefault()
+        cb(e.touches[0].pageX, e.touches[0].pageY)
+
+        var oldMove = document.ontouchmove
+        document.ontouchmove = function (e) {
+            e.preventDefault()
+            cb(e.touches[0].pageX, e.touches[0].pageY)
+        }
+
+        var oldEnd = document.ontouchend;
+        var oldCancel = document.ontouchcancel
+        document.ontouchend = document.ontouchcancel = function (e) {
+            if (onUp) onUp()
+            document.ontouchmove = oldMove
+            document.ontouchend = oldEnd
+            document.ontouchcancel = oldCancel
+        }
+    })
+}
+
+function grabMouseRelative(d, cb) {
+    var origin = null
+    grabMouse(d, function (x, y) {
+        if (!origin) {
+            origin = [x, y]
+        } else {
+            cb(x - origin[0], y - origin[1])
+        }
+    }, function () {
+        origin = null
+    })
+}
+
 function drawForkMe() {
     var m = window.location.href.match(/([^\/\.]+)\.github\.io\/([^\/]+)/)
     if (!m) return $('<div/>')
